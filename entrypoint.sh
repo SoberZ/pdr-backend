@@ -11,6 +11,7 @@ fi
 
 if [ ! -d "/app/pdr_backend/$MODULE_NAME" ]
 then
+    echo "${ls}"
     echo "Module $MODULE_NAME does not exist."
     exit 1
 fi

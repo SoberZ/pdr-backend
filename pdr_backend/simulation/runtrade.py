@@ -17,21 +17,21 @@ from pdr_backend.util.timeutil import timestr_to_ut
 #   Why: to avoid ambiguity. Eg is PAIR_FILTER for yval_coin, or input data?
 
 data_pp = DataPP(  # user-uncontrollable params, at data-eng level
-    timeframe="5m",  # "5m" or "1h"
+    timeframe="1h",  # "5m" or "1h"
     yval_exchange_id="binance",  # "binance" or "kraken" or ...
     yval_coin="BTC",  # "BTC" or "ETH" or "TRX" or ...
     usdcoin="USDT",  # "USDT" or "USDC" or ..
     yval_signal="close",  # "close" or "open" or ...
-    N_test=50000,  # 50000 . num points to test on, 1 at a time (online)
+    N_test=10000,  # 50000 . num points to test on, 1 at a time (online)
 )
 
 data_ss = DataSS(  # user-controllable params, at data-eng level
     csv_dir=os.path.abspath("csvs"),  # eg "csvs". abs or rel loc'n of csvs dir
-    st_timestamp=timestr_to_ut("2022-06-30"),  # "2019-09-13_04:00" is earliest
+    st_timestamp=timestr_to_ut("2020-01-01"),  # "2019-09-13_04:00" is earliest
     fin_timestamp=timestr_to_ut("now"),  # eg 'now','2023-06-21_17:55'
-    max_N_train=100000,  # eg 50000. # if inf, only limited by data available
-    Nt=20,  # eg 10. model inputs Nt past pts z[t-1], .., z[t-Nt]
-    signals=["close"],  # for model input vars. eg ["open","high","volume"]
+    max_N_train=20000,  # eg 50000. # if inf, only limited by data available
+    Nt=10,  # eg 10. model inputs Nt past pts z[t-1], .., z[t-Nt]
+    signals=["close", "high", "low", "volume"],  # for model input vars. eg ["open","high","volume"]
     coins=["BTC", "ETH"],  # for model input vars. eg ["ETH", "BTC"]
     exchange_ids=["binance"],  # for model input vars. eg ["binance", "mxc"]
 )

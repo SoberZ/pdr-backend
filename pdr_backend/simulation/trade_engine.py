@@ -11,6 +11,11 @@ from statsmodels.stats.proportion import proportion_confint
 from statsmodels.tsa.arima.model import ARIMA
 from sklearn.model_selection import RandomizedSearchCV
 import xgboost as xgb
+import tensorflow as tf
+from scikeras.wrappers import KerasClassifier
+from sklearn.ensemble import VotingClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neural_network import MLPClassifier
 
 from pdr_backend.data_eng.data_factory import DataFactory
 from pdr_backend.data_eng.data_pp import DataPP
@@ -27,14 +32,17 @@ FONTSIZE = 12
 
 
 def create_lagged_features(df, n_lags):
+    d = {}
     for lag in range(1, n_lags + 1):
-        df[f'lag_{lag}'] = df['binance:BTC:close'].shift(lag)
-    return df
+        d[f'lag_{lag}'] = df['binance:BTC:close'].shift(lag)
+    return pd.concat([df, pd.DataFrame(d)], axis=1)
 
 def add_rolling_window_features(df, window_size):
-    df[f'rolling_mean_{window_size}'] = df['binance:BTC:close'].rolling(window=window_size).mean()
-    df[f'rolling_std_{window_size}'] = df['binance:BTC:close'].rolling(window=window_size).std()
-    return df
+    new_cols = {
+        f'rolling_mean_{window_size}': df['binance:BTC:close'].rolling(window=window_size).mean(),
+        f'rolling_std_{window_size}': df['binance:BTC:close'].rolling(window=window_size).std()
+    }
+    return pd.concat([df, pd.DataFrame(new_cols)], axis=1)
 
 def add_ARIMA_features(df, p, d, q):
     original_index = df.index
@@ -44,9 +52,11 @@ def add_ARIMA_features(df, p, d, q):
 
     df_reset[f'ARIMA_{p}_{d}_{q}'] = model.predict(start=0, end=len(df_reset) - 1)
     df_reset[f'ARIMA_error_{p}_{d}_{q}'] = df_reset['binance:BTC:close'] - df_reset[f'ARIMA_{p}_{d}_{q}']
+
     df_reset.set_index(original_index, inplace=True)
 
     return df_reset
+
 
 def add_RSI_feature(df, column='binance:BTC:close', period=14):
     """
@@ -65,7 +75,7 @@ def add_RSI_feature(df, column='binance:BTC:close', period=14):
     loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
 
     rs = gain / loss
-    df['RSI'] = 100 - (100 / (1 + rs))
+    df[f'RSI_{period}'] = 100 - (100 / (1 + rs))
 
     return df
 
@@ -92,17 +102,168 @@ def add_MACD_feature(df, column='binance:BTC:close', short_period=12, long_perio
     return df
 
 
-def add_model_featuers(df):
-    df = add_ARIMA_features(df, 0, 1, 4)
-    df = add_rolling_window_features(df, 5)
-    df = add_rolling_window_features(df, 15)
-    df = add_rolling_window_features(df, 50)
-    df = add_rolling_window_features(df, 100)
-    df = create_lagged_features(df, 5)
-    df = add_RSI_feature(df)
-    df = add_MACD_feature(df)
-    df.dropna(inplace=True)
+def add_ema_features(df, column='binance:BTC:close', period=14):
+    """
+    Adds the Exponential Moving Average (EMA) to the DataFrame.
+
+    Args:
+    df (pd.DataFrame): DataFrame with price data.
+    column (str): Column name of price data.
+    period (int): Period for calculating EMA.
+
+    Returns:
+    pd.DataFrame: DataFrame with the EMA feature added.
+    """
+    df[f'EMA_{period}'] = df[column].ewm(span=period, adjust=False).mean()
+
     return df
+
+def add_bollinger_bands(df, column='binance:BTC:close', period=20, std=2):
+    """
+    Adds the Bollinger Bands (BB) to the DataFrame.
+
+    Args:
+    df (pd.DataFrame): DataFrame with price data.
+    column (str): Column name of price data.
+    period (int): Period for calculating BB.
+    std (int): Standard deviation for calculating BB.
+
+    Returns:
+    pd.DataFrame: DataFrame with the BB feature added.
+    """
+    df[f'BB_{period}'] = df[column].rolling(window=period).mean()
+    df[f'BB_Upper_{period}'] = df[f'BB_{period}'] + (df[column].rolling(window=period).std() * std)
+    df[f'BB_Lower_{period}'] = df[f'BB_{period}'] - (df[column].rolling(window=period).std() * std)
+    return df
+
+def add_ATR_feature(df, column='binance:BTC:close', period=14):
+    """
+    Adds the Average True Range (ATR) to the DataFrame.
+
+    Args:
+    df (pd.DataFrame): DataFrame with price data.
+    column (str): Column name of price data.
+    period (int): Period for calculating ATR.
+
+    Returns:
+    pd.DataFrame: DataFrame with the ATR feature added.
+    """
+
+    df['H-L'] = df['binance:BTC:high'] - df['binance:BTC:low']
+    df['H-PC'] = abs(df['binance:BTC:high'] - df['binance:BTC:close'].shift(1))
+    df['L-PC'] = abs(df['binance:BTC:low'] - df['binance:BTC:close'].shift(1))
+    df['TR'] = df[['H-L', 'H-PC', 'L-PC']].max(axis=1, skipna=False)
+    df['ATR'] = df['TR'].rolling(period).mean()
+
+    return df
+
+def add_ADX_feature(df, column='binance:BTC:close', period=14):
+    """
+    Adds the Average Directional Index (ADX) to the DataFrame.
+
+    Args:
+    df (pd.DataFrame): DataFrame with price data.
+    column (str): Column name of price data.
+    period (int): Period for calculating ADX.
+
+    Returns:
+    pd.DataFrame: DataFrame with the ADX feature added.
+    """
+    df['H-PC'] = df['binance:BTC:high'] - df['binance:BTC:high'].shift(1)
+    df['PC-L'] = df['binance:BTC:low'].shift(1) - df['binance:BTC:low']
+    df['+DM'] = np.where((df['H-PC'] > 0) & (df['H-PC'] > df['PC-L']), df['H-PC'], 0)
+    df['-DM'] = np.where((df['PC-L'] > 0) & (df['PC-L'] > df['H-PC']), df['PC-L'], 0)
+    df['TRn'] = np.where(df['TR'] == 0, 0, df['TR'])
+    df['+DMn'] = np.where(df['+DM'] == 0, 0, df['+DM'])
+    df['-DMn'] = np.where(df['-DM'] == 0, 0, df['-DM'])
+
+    df['TRn-1'] = df['TRn'].shift(1)
+    df['+DMn-1'] = df['+DMn'].shift(1)
+    df['-DMn-1'] = df['-DMn'].shift(1)
+    df['TRn-1'] = np.where(df['TRn-1'] == 0, df['TR'], df['TRn-1'])
+
+    df['+DI'] = 100 * (df['+DMn'] / df['TRn-1']).ewm(span=period, adjust=False).mean()
+    df['-DI'] = 100 * (df['-DMn'] / df['TRn-1']).ewm(span=period, adjust=False).mean()
+    df['DX'] = 100 * (abs(df['+DI'] - df['-DI']) / (df['+DI'] + df['-DI'])).ewm(span=period, adjust=False).mean()
+    df['ADX'] = df['DX'].ewm(span=period, adjust=False).mean()
+
+
+def add_volume_features(df, column='binance:BTC:volume', period=14):
+    """
+    Adds the Volume (VOL) to the DataFrame.
+
+    Args:
+    df (pd.DataFrame): DataFrame with price data.
+    column (str): Column name of price data.
+    period (int): Period for calculating VOL.
+
+    Returns:
+    pd.DataFrame: DataFrame with the VOL feature added.
+    """
+    d = {}
+    d[f'Volume_{period}'] = df[column].rolling(window=period).mean()
+
+    return pd.concat([df, pd.DataFrame(d)], axis=1)
+
+def add_VWAP_feature(df, column='binance:BTC:close', period=14):
+    """
+    Adds the Volume Weighted Average Price (VWAP) to the DataFrame.
+
+    Args:
+    df (pd.DataFrame): DataFrame with price data.
+    column (str): Column name of price data.
+    period (int): Period for calculating VWAP.
+
+    Returns:
+    pd.DataFrame: DataFrame with the VWAP feature added.
+    """
+    df['TP'] = (df['binance:BTC:high'] + df['binance:BTC:low'] + df['binance:BTC:close']) / 3
+    df['TradedValue'] = df['TP'] * df['binance:BTC:volume']
+    df['CumVol'] = df['binance:BTC:volume'].cumsum()
+    df['CumTradedValue'] = df['TradedValue'].cumsum()
+    df[f'VWAP_{period}'] = df['CumTradedValue'] / df['CumVol']
+
+    return df
+
+def add_model_features(df):
+    # Add multiple rolling window features
+    for i in range(10, 250, 10):
+        df = add_rolling_window_features(df, i)
+        df = add_ema_features(df, period=i)
+
+    # Add multiple ARIMA features
+    df = add_ARIMA_features(df, 0, 1, 4)
+
+    # Add multiple RSI features
+    for i in range(14, 50, 4):
+        df = add_RSI_feature(df, period=i)
+
+    # Add multiple MACD features
+    df = create_lagged_features(df, 8)
+    # df = add_MACD_feature(df)
+
+    # Add volatility features
+    for i in range(10, 100, 5):
+        # df = add_bollinger_bands(df, period=i)
+        df = add_ATR_feature(df, period=i)
+        # df = add_ADX_feature(df, period=i)
+        df = add_volume_features(df, column="binance:BTC:volume", period=i)
+        df = add_VWAP_feature(df, period=i)
+
+    # df.dropna(inplace=True)
+    return df
+
+# Define LSTM model in a function
+def create_lstm_model(timesteps, input_dim):
+    model = tf.keras.models.Sequential([
+        tf.keras.layers.LSTM(50, input_shape=(timesteps, input_dim)),  # Adjust 'timesteps' and 'input_dim'
+        tf.keras.layers.Dense(1, activation='sigmoid')
+    ])
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    return model
+
+
+
 
 @enforce_types
 class PlotState:
@@ -205,7 +366,7 @@ class TradeEngine:
         log = self._log
 
         # Apply the functions to create features
-        hist_df = add_model_featuers(hist_df)
+        hist_df = add_model_features(hist_df)
 
         testshift = self.data_pp.N_test - test_i - 1  # eg [99, 98, .., 2, 1, 0]
         X, y, _ = self.data_factory.create_xy(hist_df, testshift)
@@ -282,6 +443,25 @@ class TradeEngine:
 
             # Predicting with the best model
             predprice = best_model.predict(X_test)
+        elif self.model_ss.model_approach == "ENSEMBLE":
+            # Define KNN Classifiers
+            knearest1 = KNeighborsClassifier(n_neighbors=6)
+            knearest2 = KNeighborsClassifier(n_neighbors=8)
+
+            # Define MLP
+            mlp1 = MLPClassifier(random_state=31, max_iter=300)
+            mlp2 = MLPClassifier(random_state=98, max_iter=300)
+
+            # Define LSTM
+            lstm1 = KerasClassifier(build_fn=create_lstm_model, timesteps=1, input_dim=1, epochs=10, batch_size=32, verbose=0)
+
+            voting_model = VotingClassifier(estimators=[('knn1', knearest1), ('knn2', knearest2), ('mlp1', mlp1), ('mlp2', mlp2), ('lstm1', lstm1)], voting='hard')
+
+            # Train the model
+            voting_model.fit(X_train, y_train)
+
+            # Predict the price
+            predprice = voting_model.predict(X_test)
         else:
             # Existing logic for other model types
             model_factory = ModelFactory(self.model_ss)

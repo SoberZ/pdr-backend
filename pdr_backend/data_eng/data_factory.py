@@ -214,12 +214,14 @@ class DataFactory:
         ss = self.ss
         x_df = pd.DataFrame()
 
-        target_hist_cols = [
-            f"{exchange_id}:{coin}:{signal}"
-            for exchange_id in ss.exchange_ids
-            for coin in ss.coins
-            for signal in ss.signals
-        ]
+        # target_hist_cols = [
+        #     f"{exchange_id}:{coin}:{signal}"
+        #     for exchange_id in ss.exchange_ids
+        #     for coin in ss.coins
+        #     for signal in ss.signals
+        # ]
+
+        target_hist_cols = ["price_up"]
 
         for hist_col in target_hist_cols:
             assert hist_col in hist_df.columns, "missing a data col"

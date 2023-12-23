@@ -105,7 +105,11 @@ class BasePredictoorAgent(ABC):
         target_time = (epoch + 2) * s_per_epoch
         print(f"      Predict for time slot = {target_time}...")
 
+        start = time.time()
         predval, stake = self.get_prediction(addr, target_time)
+        end = time.time()
+        prediction_time = end - start
+        print(f"      -> Predict took {prediction_time} seconds")
         print(f"      -> Predict result: predval={predval}, stake={stake}")
         if predval is None or stake <= 0:
             print("      Done feed: can't use predval/stake")

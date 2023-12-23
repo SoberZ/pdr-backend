@@ -1,0 +1,24 @@
+MAINNET
+
+$env:PRIVATE_KEY = "be0712fe7ba53118a491218f8edd1460bb6b81b3eb1b55a4127575ffe6f1c3db"
+$env:ADDRESS_FILE = "${env:HOME}\.ocean\ocean-contracts\artifacts\address.json"
+$env:PAIR_FILTER = "BTC/USDT"
+$env:TIMEFRAME_FILTER = "5m"
+$env:SOURCE_FILTER = "binance"
+$env:RPC_URL="https://sapphire.oasis.io"
+$env:SUBGRAPH_URL="https://v4.subgraph.sapphire-mainnet.oceanprotocol.com/subgraphs/name/oceanprotocol/ocean-subgraph"
+$env:STAKE_TOKEN="0x39d22B78A7651A76Ffbde2aaAB5FD92666Aca520" # OCEAN token address
+$env:OWNER_ADDRS="0x4ac2e51f9b1b0ca9e000dfe6032b24639b172703" # OPF deployer address
+
+
+TESTNET
+
+$env:PRIVATE_KEY = "be0712fe7ba53118a491218f8edd1460bb6b81b3eb1b55a4127575ffe6f1c3db"
+$env:ADDRESS_FILE="${HOME}/.ocean/ocean-contracts/artifacts/address.json"
+$env:PAIR_FILTER="BTC/USDT"
+$env:TIMEFRAME_FILTER="5m"
+$env:SOURCE_FILTER="binance"
+$env:RPC_URL="https://testnet.sapphire.oasis.dev"
+$env:SUBGRAPH_URL="https://v4.subgraph.sapphire-testnet.oceanprotocol.com/subgraphs/name/oceanprotocol/ocean-subgraph"
+$env:STAKE_TOKEN="0x973e69303259B0c2543a38665122b773D28405fB" # (fake) OCEAN token address
+$env:OWNER_ADDRS="0xe02a421dfc549336d47efee85699bd0a3da7d6ff" # OPF deployer address

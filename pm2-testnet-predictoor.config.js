@@ -2,10 +2,10 @@ module.exports = {
   apps : [{
     name   : "pm2-testnet-predictoor",
     script : "./pdr_backend/predictoor/main.py",
-    args : "3",
+    args : "4",
     env: {
-      PRIVATE_KEY : "<YOUR_PRIVATE_KEY>",
-      ADDRESS_FILE : "${HOME}/.ocean/ocean-contracts/artifacts/address.json",
+      PRIVATE_KEY : "be0712fe7ba53118a491218f8edd1460bb6b81b3eb1b55a4127575ffe6f1c3db",
+      ADDRESS_FILE : "${HOME}/.ocean/oceans-contracts/artifacts/address.json",
       PAIR_FILTER : "BTC/USDT",
       TIMEFRAME_FILTER : "5m",
       SOURCE_FILTER : "binance",

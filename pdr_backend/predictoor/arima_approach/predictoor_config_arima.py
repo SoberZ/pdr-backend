@@ -28,7 +28,7 @@ class PredictoorConfigArima(BasePredictoorConfig):
             Nt=10,  # eg 10. model inputs Nt past pts z[t-1], .., z[t-Nt]
             signals=["close", "high", "low", "volume"],  # for model input vars. eg ["open","high","volume"]
             coins=["BTC"],  # for model input vars. eg ["ETH", "BTC"]
-            exchange_ids=["binanceus"],  # for model input vars. eg ["binance", "mxc"]
+            exchange_ids=["binance"],  # for model input vars. eg ["binance", "mxc"]
         )
 
         # Note: Inside PredictoorAgent3::get_prediction(),

@@ -175,13 +175,20 @@ class DataFactory:
                 assert csv_df.index.name == "timestamp"
 
                 for csv_col in csv_df.columns:
-                    if csv_col == "datetime":
+                    if csv_col in hist_df.columns:
+                        continue
+                    elif csv_col == "datetime":
                         if "datetime" in hist_df.columns:
                             continue
                         hist_col = csv_col
                     else:
                         signal = csv_col  # eg "close"
                         hist_col = f"{exchange_id}:{coin}:{signal}"
+
+                        if hist_col in hist_df.columns:
+                            continue
+                    # print(hist_col)
+                    # print(hist_df.columns)
                     hist_df[hist_col] = csv_df[csv_col]
 
         assert "datetime" in hist_df.columns

@@ -135,9 +135,7 @@ def add_model_features(df):
     df = create_lagged_features(df, 5)
     df = add_MACD_feature(df)
     df = add_VWAP_feature(df, exchange="binance")
-    df = add_VWAP_feature(df, exchange="binanceus")
     df = add_on_balance_volume_feature(df, exchange="binance")
-
 
     for i in range(14, 200, 20):
         df = add_RSI_feature(df, period=i)
@@ -167,16 +165,16 @@ class PredictoorAgentArima(BasePredictoorAgent):
         super().__init__(config)
         self.config: PredictoorConfigArima = config
 
-        # Define KNN Classifiers
-        self.knearest1 = KNeighborsClassifier(n_neighbors=6)
-        self.knearest2 = KNeighborsClassifier(n_neighbors=8)
+        # # Define KNN Classifiers
+        # self.knearest1 = KNeighborsClassifier(n_neighbors=6)
+        # self.knearest2 = KNeighborsClassifier(n_neighbors=8)
 
-        # Define MLP
-        self.mlp1 = MLPClassifier(random_state=31, max_iter=300)
-        self.mlp2 = MLPClassifier(random_state=98, max_iter=300)
+        # # Define MLP
+        # self.mlp1 = MLPClassifier(random_state=31, max_iter=300)
+        # self.mlp2 = MLPClassifier(random_state=98, max_iter=300)
 
-        # Define LSTM
-        self.lstm1 = KerasClassifier(build_fn=create_lstm_model, timesteps=1, input_dim=1, epochs=10, batch_size=32, verbose=0)
+        # # Define LSTM
+        # self.lstm1 = KerasClassifier(build_fn=create_lstm_model, timesteps=1, input_dim=1, epochs=10, batch_size=32, verbose=0)
 
     def get_prediction(
         self, addr: str, timestamp: int  # pylint: disable=unused-argument
